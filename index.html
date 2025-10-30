@@ -1,8 +1,161 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <meta http-equiv="refresh" content="0; url=http://foxxum.smartone-iptv.com/">
-    <title>Redirecting...</title>
-  </head>
+<html lang="fa">
+<head>
+  <meta charset="UTF-8" />
+  <title>SmartOne IPTV</title>
+  <style>
+    html, body { height:100%; margin:0; padding:0; }
+    body{
+      background:#111; color:#fff; font-family:Arial, sans-serif;
+      display:flex; flex-direction:column; align-items:center; justify-content:center; overflow:hidden;
+    }
+    h1{
+      position:absolute; top:5vh; font-size:3vw; letter-spacing:1px; text-align:center; width:100%;
+    }
+    .button-container{
+      display:flex; flex-wrap:wrap; justify-content:center; align-items:center;
+      gap:4vw; width:90vw; max-width:1600px;
+    }
+    .button{
+      width:35vw; height:20vh; max-width:400px; max-height:220px;
+      min-width:180px; min-height:100px;
+      background:#333; border:3px solid transparent; border-radius:20px;
+      display:flex; align-items:center; justify-content:center;
+      font-size:2vw; cursor:pointer; transition:all 0.25s ease;
+      box-sizing:border-box; text-align:center; box-shadow:0 0 0px #00bfff00;
+    }
+    .button.selected{
+      border-color:#00bfff; background:#444; transform:scale(1.08); box-shadow:0 0 20px #00bfff;
+    }
+    .button:active{ background:#555; transform:scale(1.05); }
+    @media (max-width:800px){
+      .button{ width:70vw; height:18vh; font-size:4vw; }
+    }
+    @keyframes press {
+      0% { transform: scale(1.1); box-shadow: 0 0 25px #00bfff; }
+      50% { transform: scale(0.97); box-shadow: 0 0 10px #0088cc; }
+      100% { transform: scale(1.08); box-shadow: 0 0 20px #00bfff; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Custom App Manager</h1>
+  <div class="button-container">
+    <div class="button selected" data-url="http://192.168.70.40:8000">SmartOne IPTV</div>
+    <div class="button" data-url="https://example.com/2">Coming Soon...</div>
+    <div class="button" data-url="https://example.com/3">Coming Soon...</div>
+    <div class="button" data-url="https://example.com/4">Coming Soon...4</div>
+  </div>
+
+  <script>
+    const buttons = Array.from(document.querySelectorAll('.button'));
+    let selectedIndex = 0;
+
+    function updateSelection(){
+      buttons.forEach((b,i)=> b.classList.toggle('selected', i===selectedIndex));
+      // ensure focused element is scrolled into view a bit if needed (helpful on some TV browsers)
+      const rect = buttons[selectedIndex].getBoundingClientRect();
+      const padding = 20;
+      if (rect.top < padding || rect.bottom > window.innerHeight - padding) {
+        buttons[selectedIndex].scrollIntoView({block: "center", behavior: "smooth"});
+      }
+    }
+
+    function centerOf(rect){
+      return { cx: rect.left + rect.width/2, cy: rect.top + rect.height/2, w: rect.width, h: rect.height };
+    }
+
+    function findBestVertical(targetDir){ // 'down' or 'up'
+      const currentRect = buttons[selectedIndex].getBoundingClientRect();
+      const cur = centerOf(currentRect);
+      const threshold = Math.max(8, currentRect.height * 0.15); // small epsilon to avoid same-row noise
+
+      // collect candidates that are strictly below (for down) or above (for up)
+      const candidates = buttons.map((btn, i) => {
+        const r = btn.getBoundingClientRect();
+        return { i, c: centerOf(r) };
+      }).filter(item => {
+        return targetDir === 'down' ? (item.c.cy > cur.cy + threshold) : (item.c.cy < cur.cy - threshold);
+      });
+
+      if (candidates.length === 0) return selectedIndex;
+
+      // primary sort: smallest vertical distance (abs), secondary: smallest horizontal distance
+      candidates.sort((a,b) => {
+        const dyA = Math.abs(a.c.cy - cur.cy);
+        const dyB = Math.abs(b.c.cy - cur.cy);
+        if (dyA !== dyB) return dyA - dyB;
+        const dxA = Math.abs(a.c.cx - cur.cx);
+        const dxB = Math.abs(b.c.cx - cur.cx);
+        return dxA - dxB;
+      });
+
+      return candidates[0].i;
+    }
+
+    function findBestHorizontal(dir){
+      const currentRect = buttons[selectedIndex].getBoundingClientRect();
+      const cur = centerOf(currentRect);
+      const candidates = buttons.map((btn,i)=>({i, c:centerOf(btn.getBoundingClientRect())}))
+        // prefer items that are roughly on same row (within height*0.6), but allow others if none
+        .filter(item => {
+          const sameRow = Math.abs(item.c.cy - cur.cy) < currentRect.height * 0.6;
+          if (dir === 'right') return item.c.cx > cur.cx && (sameRow || true);
+          return item.c.cx < cur.cx && (sameRow || true);
+        });
+
+      if (candidates.length === 0) return selectedIndex;
+
+      // among candidates choose smallest horizontal distance, tie-breaker vertical distance
+      candidates.sort((a,b)=>{
+        const dxA = Math.abs(a.c.cx - cur.cx);
+        const dxB = Math.abs(b.c.cx - cur.cx);
+        if (dxA !== dxB) return dxA - dxB;
+        const dyA = Math.abs(a.c.cy - cur.cy);
+        const dyB = Math.abs(b.c.cy - cur.cy);
+        return dyA - dyB;
+      });
+
+      return candidates[0].i;
+    }
+
+    document.addEventListener('keydown', (e) => {
+      let newIndex = selectedIndex;
+      switch(e.key){
+        case 'ArrowDown':
+          newIndex = findBestVertical('down');
+          break;
+        case 'ArrowUp':
+          newIndex = findBestVertical('up');
+          break;
+        case 'ArrowRight':
+          newIndex = findBestHorizontal('right');
+          break;
+        case 'ArrowLeft':
+          newIndex = findBestHorizontal('left');
+          break;
+        case 'Enter':
+        case 'OK':
+          const btn = buttons[selectedIndex];
+          btn.style.animation = 'press 0.25s ease';
+          setTimeout(()=>{ btn.style.animation = ''; window.location.href = btn.dataset.url; }, 250);
+          return;
+        default:
+          return;
+      }
+      if (newIndex !== selectedIndex){
+        selectedIndex = newIndex;
+        updateSelection();
+      }
+    });
+
+    // also allow mouse click + focus
+    buttons.forEach((b,i)=>{
+      b.addEventListener('click', ()=>{ selectedIndex = i; updateSelection(); window.location.href = b.dataset.url; });
+      b.addEventListener('mouseenter', ()=>{ selectedIndex = i; updateSelection(); });
+    });
+
+    updateSelection();
+  </script>
+</body>
 </html>
