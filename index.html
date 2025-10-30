@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -55,15 +55,31 @@
       justify-content: center;
       font-size: 2vw;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.18s ease;
       box-sizing: border-box;
       text-align: center;
+      outline: none;
+    }
+
+    /* glow animation for the selected button */
+    @keyframes glow {
+      0%   { box-shadow: 0 0 6px rgba(0,191,255,0.35), 0 0 18px rgba(0,191,255,0.12); transform: scale(1.03); }
+      50%  { box-shadow: 0 0 14px rgba(0,191,255,0.55), 0 0 30px rgba(0,191,255,0.20); transform: scale(1.06); }
+      100% { box-shadow: 0 0 8px rgba(0,191,255,0.40), 0 0 20px rgba(0,191,255,0.15); transform: scale(1.04); }
+    }
+
+    /* press animation (short pulse) */
+    @keyframes press {
+      0% { transform: scale(1.06); box-shadow: 0 0 18px rgba(0,191,255,0.5); }
+      50% { transform: scale(0.98); box-shadow: 0 0 8px rgba(0,140,200,0.45); }
+      100% { transform: scale(1.05); box-shadow: 0 0 14px rgba(0,191,255,0.45); }
     }
 
     .button.selected {
       border-color: #00bfff;
       background-color: #444;
       transform: scale(1.05);
+      animation: glow 1.6s ease-in-out infinite;
     }
 
     .button:active {
@@ -152,9 +168,32 @@
 
         case 'Enter':
         case 'OK':
-          window.location.href = buttons[selectedIndex].dataset.url;
+          // play a short press animation on the selected button before redirect
+          const selectedButton = buttons[selectedIndex];
+          selectedButton.style.animation = 'press 0.22s ease';
+          // ensure animation cleared after playing
+          setTimeout(() => {
+            selectedButton.style.animation = '';
+            // redirect after animation
+            window.location.href = selectedButton.dataset.url;
+          }, 220);
           break;
       }
+    });
+
+    // allow mouse interactions too
+    buttons.forEach((btn, idx) => {
+      btn.addEventListener('click', () => {
+        selectedIndex = idx;
+        updateSelection();
+        // short visual press on click as well
+        btn.style.animation = 'press 0.22s ease';
+        setTimeout(() => { btn.style.animation = ''; window.location.href = btn.dataset.url; }, 220);
+      });
+      btn.addEventListener('mouseenter', () => {
+        selectedIndex = idx;
+        updateSelection();
+      });
     });
 
     updateSelection();
